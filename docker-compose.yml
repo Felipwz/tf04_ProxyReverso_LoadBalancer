@@ -1,0 +1,186 @@
+version: '3.8'
+
+# TF04 - E-commerce com Load Balancer Avançado
+# Configuração completa para demonstração de alta disponibilidade
+
+services:
+  # Nginx Load Balancer com configuração avançada
+  nginx:
+    image: nginx:alpine
+    container_name: ecommerce-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - ecommerce-backend1
+      - ecommerce-backend2
+      - ecommerce-backend3
+      - ecommerce-frontend
+      - ecommerce-admin
+    networks:
+      - ecommerce_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/nginx-status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Backend API - Instância 1
+  ecommerce-backend1:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ecommerce-backend1
+    environment:
+      - INSTANCE_ID=backend-instance-1
+      - INSTANCE_PORT=5000
+      - FLASK_ENV=production
+    expose:
+      - "5000"
+    networks:
+      - ecommerce_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # Backend API - Instância 2
+  ecommerce-backend2:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ecommerce-backend2
+    environment:
+      - INSTANCE_ID=backend-instance-2
+      - INSTANCE_PORT=5000
+      - FLASK_ENV=production
+    expose:
+      - "5000"
+    networks:
+      - ecommerce_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # Backend API - Instância 3
+  ecommerce-backend3:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ecommerce-backend3
+    environment:
+      - INSTANCE_ID=backend-instance-3
+      - INSTANCE_PORT=5000
+      - FLASK_ENV=production
+    expose:
+      - "5000"
+    networks:
+      - ecommerce_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # Frontend (Loja Virtual)
+  ecommerce-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ecommerce-frontend
+    networks:
+      - ecommerce_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+  # Admin Panel
+  ecommerce-admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+    container_name: ecommerce-admin
+    expose:
+      - "80"
+    networks:
+      - ecommerce_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+networks:
+  ecommerce_network:
+    driver: bridge
+    name: ecommerce_network
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# Volumes para persistência
+volumes:
+  nginx_logs:
+    driver: local

@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Produtos - E-commerce TF04</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <nav class="navbar">
+            <a href="/" class="logo">E-commerce TF04</a>
+            <ul class="nav-links">
+                <li><a href="/">Início</a></li>
+                <li><a href="produtos.html">Produtos</a></li>
+                <li><a href="/admin/">Admin</a></li>
+                <li><a href="/nginx-status">Status</a></li>
+            </ul>
+            <a href="carrinho.html" class="cart-icon">
+                🛒 Carrinho <span id="cart-count">(0)</span>
+            </a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <!-- Informações da instância -->
+        <div class="status-info">
+            <h3>📦 Catálogo de Produtos</h3>
+            <p>Dados servidos pela instância: <span class="instance-id" id="current-instance">Carregando...</span></p>
+        </div>
+
+        <!-- Filtros -->
+        <div style="background: white; padding: 1rem; border-radius: 8px; margin-bottom: 2rem;">
+            <h4>🔍 Filtros</h4>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem;">
+                <select id="categoria-filter" class="btn" style="background: white; color: #333; border: 1px solid #ddd;">
+                    <option value="">Todas as categorias</option>
+                    <option value="eletrônicos">Eletrônicos</option>
+                    <option value="calçados">Calçados</option>
+                    <option value="roupas">Roupas</option>
+                    <option value="livros">Livros</option>
+                </select>
+                <button onclick="loadProducts()" class="btn">🔄 Recarregar</button>
+            </div>
+        </div>
+
+        <!-- Loading state -->
+        <div id="loading" class="loading" style="display: none;">
+            Carregando produtos...
+        </div>
+
+        <!-- Grid de produtos -->
+        <div id="produtos-container" class="produtos-grid">
+            <!-- Produtos serão carregados via JavaScript -->
+        </div>
+
+        <!-- Informações de performance -->
+        <div id="performance-info" style="margin-top: 2rem;"></div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>&copy; 2024 E-commerce TF04 - Load Balancer com Alta Disponibilidade</p>
+    </footer>
+
+    <script>
+        let allProducts = [];
+        let cart = JSON.parse(localStorage.getItem('cart') || '[]');
+
+        // Atualizar contador do carrinho
+        function updateCartCount() {
+            const count = cart.reduce((total, item) => total + item.quantidade, 0);
+            document.getElementById('cart-count').textContent = `(${count})`;
+        }
+
+        // Carregar produtos da API
+        async function loadProducts() {
+            const loadingDiv = document.getElementById('loading');
+            const containerDiv = document.getElementById('produtos-container');
+            const performanceDiv = document.getElementById('performance-info');
+
+            loadingDiv.style.display = 'block';
+            containerDiv.innerHTML = '';
+
+            const startTime = performance.now();
+
+            try {
+                const response = await fetch('/api/produtos');
+                const data = await response.json();
+
+                const endTime = performance.now();
+                const responseTime = (endTime - startTime).toFixed(2);
+
+                allProducts = data.produtos;
+
+                // Atualizar informação da instância
+                document.getElementById('current-instance').textContent = data.instance_id;
+
+                // Aplicar filtros
+                filterProducts();
+
+                // Mostrar informações de performance
+                performanceDiv.innerHTML = `
+                    <div class="status-info">
+                        <h4>⚡ Performance</h4>
+                        <p><strong>Instância:</strong> ${data.instance_id}</p>
+                        <p><strong>Tempo de resposta:</strong> ${responseTime}ms</p>
+                        <p><strong>Total de produtos:</strong> ${data.total}</p>
+                        <p><strong>Timestamp:</strong> ${new Date().toLocaleString()}</p>
+                    </div>
+                `;
+
+                loadingDiv.style.display = 'none';
+
+            } catch (error) {
+                console.error('Erro ao carregar produtos:', error);
+                containerDiv.innerHTML = `
+                    <div class="error">
+                        ❌ Erro ao carregar produtos. Tentando novamente...
+                    </div>
+                `;
+
+                // Tentar novamente após 2 segundos
+                setTimeout(loadProducts, 2000);
+                loadingDiv.style.display = 'none';
+            }
+        }
+
+        // Filtrar produtos por categoria
+        function filterProducts() {
+            const categoriaFilter = document.getElementById('categoria-filter').value;
+            const containerDiv = document.getElementById('produtos-container');
+
+            let produtosFiltrados = allProducts;
+
+            if (categoriaFilter) {
+                produtosFiltrados = allProducts.filter(produto =>
+                    produto.categoria === categoriaFilter
+                );
+            }
+
+            if (produtosFiltrados.length === 0) {
+                containerDiv.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 2rem;">
+                        <h3>🔍 Nenhum produto encontrado</h3>
+                        <p>Tente alterar os filtros ou recarregar a página.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            containerDiv.innerHTML = produtosFiltrados.map(produto => `
+                <div class="produto-card">
+                    <div class="produto-img">
+                        ${getProductEmoji(produto.categoria)}
+                        <br>ID: ${produto.id}
+                    </div>
+                    <div class="produto-info">
+                        <h3>${produto.nome}</h3>
+                        <div class="produto-preco">R$ ${produto.preco.toFixed(2)}</div>
+                        <div class="produto-categoria">${produto.categoria}</div>
+                        <button onclick="addToCart(${produto.id})" class="btn">
+                            🛒 Adicionar ao Carrinho
+                        </button>
+                        <button onclick="viewProduct(${produto.id})" class="btn btn-secondary" style="margin-top: 0.5rem; background: transparent; border: 1px solid #667eea; color: #667eea;">
+                            👁️ Ver Detalhes
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Emojis para categorias
+        function getProductEmoji(categoria) {
+            const emojis = {
+                'eletrônicos': '📱💻',
+                'calçados': '👟👠',
+                'roupas': '👕👔',
+                'livros': '📚📖'
+            };
+            return emojis[categoria] || '🛍️';
+        }
+
+        // Adicionar produto ao carrinho
+        async function addToCart(productId) {
+            try {
+                const response = await fetch('/api/carrinho', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        produto_id: productId,
+                        quantidade: 1
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.sucesso) {
+                    // Adicionar ao carrinho local
+                    const existingItem = cart.find(item => item.id === productId);
+                    if (existingItem) {
+                        existingItem.quantidade += 1;
+                    } else {
+                        cart.push({
+                            id: productId,
+                            nome: data.produto.nome,
+                            preco: data.produto.preco,
+                            quantidade: 1,
+                            categoria: data.produto.categoria
+                        });
+                    }
+
+                    localStorage.setItem('cart', JSON.stringify(cart));
+                    updateCartCount();
+
+                    // Feedback visual
+                    showNotification(`✅ ${data.produto.nome} adicionado ao carrinho!`);
+                } else {
+                    showNotification('❌ Erro ao adicionar produto ao carrinho', 'error');
+                }
+
+            } catch (error) {
+                console.error('Erro ao adicionar ao carrinho:', error);
+                showNotification('❌ Erro de conexão', 'error');
+            }
+        }
+
+        // Ver detalhes do produto
+        async function viewProduct(productId) {
+            try {
+                const response = await fetch(`/api/produtos/${productId}`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`
+📦 Detalhes do Produto
+
+Nome: ${data.produto.nome}
+Preço: R$ ${data.produto.preco.toFixed(2)}
+Categoria: ${data.produto.categoria}
+ID: ${data.produto.id}
+
+Servido por: ${data.instance_id}
+                    `);
+                } else {
+                    showNotification('❌ Produto não encontrado', 'error');
+                }
+            } catch (error) {
+                showNotification('❌ Erro ao carregar detalhes', 'error');
+            }
+        }
+
+        // Mostrar notificações
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${type === 'error' ? '#f8d7da' : '#d4edda'};
+                color: ${type === 'error' ? '#721c24' : '#155724'};
+                padding: 1rem;
+                border-radius: 8px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                z-index: 1000;
+                animation: slideIn 0.3s ease;
+            `;
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // Event listeners
+        document.getElementById('categoria-filter').addEventListener('change', filterProducts);
+
+        // Carregar produtos ao inicializar
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProducts();
+            updateCartCount();
+        });
+
+        // Recarregar produtos a cada 30 segundos para mostrar load balancing
+        setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                loadProducts();
+            }
+        }, 30000);
+
+        // CSS para animação
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

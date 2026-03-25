@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-commerce TF04 - Load Balancer Avançado</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <nav class="navbar">
+            <a href="/" class="logo">E-commerce TF04</a>
+            <ul class="nav-links">
+                <li><a href="/">Início</a></li>
+                <li><a href="produtos.html">Produtos</a></li>
+                <li><a href="/admin/">Admin</a></li>
+                <li><a href="/nginx-status">Status</a></li>
+            </ul>
+            <a href="carrinho.html" class="cart-icon">
+                🛒 Carrinho <span id="cart-count">(0)</span>
+            </a>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>E-commerce com Load Balancer</h1>
+            <p>Demonstração de alta disponibilidade com Nginx e múltiplas instâncias backend</p>
+            <a href="produtos.html" class="btn">Ver Produtos</a>
+            <a href="/api/info" class="btn btn-secondary">API Status</a>
+        </div>
+    </section>
+
+    <!-- Informações da Instância -->
+    <div class="container">
+        <div class="status-info">
+            <h3>🔄 Status do Load Balancer</h3>
+            <p>Instância atual servindo: <span class="instance-id" id="current-instance">Carregando...</span></p>
+            <p>Clique nos links abaixo para testar a distribuição de carga:</p>
+        </div>
+
+        <!-- Seção de demonstração -->
+        <section>
+            <h2>🏗️ Arquitetura Implementada</h2>
+            <div class="produtos-grid">
+                <div class="produto-card">
+                    <div class="produto-img">🏭 Load Balancer</div>
+                    <div class="produto-info">
+                        <h3>Nginx Proxy</h3>
+                        <div class="produto-preco">Algoritmo: least_conn</div>
+                        <div class="produto-categoria">Rate Limiting ✅</div>
+                        <a href="/nginx-status" class="btn">Ver Status</a>
+                    </div>
+                </div>
+
+                <div class="produto-card">
+                    <div class="produto-img">🔧 Backend API</div>
+                    <div class="produto-info">
+                        <h3>3 Instâncias</h3>
+                        <div class="produto-preco">Alta Disponibilidade</div>
+                        <div class="produto-categoria">Health Checks ✅</div>
+                        <a href="#" onclick="testLoadBalancing()" class="btn">Testar Distribuição</a>
+                    </div>
+                </div>
+
+                <div class="produto-card">
+                    <div class="produto-img">🔒 Segurança</div>
+                    <div class="produto-info">
+                        <h3>SSL/TLS</h3>
+                        <div class="produto-preco">Certificado Self-signed</div>
+                        <div class="produto-categoria">Gzip Compression ✅</div>
+                        <a href="https://localhost" class="btn">Testar HTTPS</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Teste de Load Balancing -->
+        <section style="margin-top: 3rem;">
+            <h2>🧪 Teste de Load Balancing</h2>
+            <div class="status-info">
+                <button onclick="testLoadBalancing()" class="btn">Executar 10 Requisições</button>
+                <button onclick="testFailover()" class="btn">Simular Falha de Instância</button>
+                <button onclick="checkHealth()" class="btn">Verificar Health</button>
+            </div>
+            <div id="test-results" style="margin-top: 1rem;"></div>
+        </section>
+
+        <!-- Links úteis -->
+        <section style="margin-top: 3rem;">
+            <h2>🔗 Links Úteis</h2>
+            <div class="produtos-grid">
+                <div class="produto-card">
+                    <div class="produto-info">
+                        <h3>API Endpoints</h3>
+                        <ul style="list-style: none; padding: 0;">
+                            <li><a href="/api/produtos">GET /api/produtos</a></li>
+                            <li><a href="/api/info">GET /api/info</a></li>
+                            <li><a href="/api/stats">GET /api/stats</a></li>
+                            <li><a href="/health">GET /health</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="produto-card">
+                    <div class="produto-info">
+                        <h3>Monitoramento</h3>
+                        <ul style="list-style: none; padding: 0;">
+                            <li><a href="/nginx-status">Nginx Status</a></li>
+                            <li><a href="/admin/">Admin Panel</a></li>
+                            <li><em>Docker logs</em></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>&copy; 2024 E-commerce TF04 - Demonstração de Load Balancer Avançado</p>
+        <p>Nginx + Flask + Docker + Alta Disponibilidade</p>
+    </footer>
+
+    <script>
+        // Função para carregar informações da instância atual
+        async function loadInstanceInfo() {
+            try {
+                const response = await fetch('/api/info');
+                const data = await response.json();
+                document.getElementById('current-instance').textContent = data.instance_id;
+            } catch (error) {
+                document.getElementById('current-instance').textContent = 'Erro ao carregar';
+            }
+        }
+
+        // Função para testar load balancing
+        async function testLoadBalancing() {
+            const resultDiv = document.getElementById('test-results');
+            resultDiv.innerHTML = '<div class="loading">Executando testes de load balancing</div>';
+
+            const results = [];
+
+            for (let i = 0; i < 10; i++) {
+                try {
+                    const response = await fetch('/api/info');
+                    const data = await response.json();
+                    results.push(data.instance_id);
+                } catch (error) {
+                    results.push('ERRO');
+                }
+            }
+
+            // Contar distribuição
+            const distribution = {};
+            results.forEach(instance => {
+                distribution[instance] = (distribution[instance] || 0) + 1;
+            });
+
+            let html = '<h4>📊 Resultados do Load Balancing (10 requisições):</h4>';
+            html += '<div style="background: white; padding: 1rem; border-radius: 8px;">';
+
+            Object.entries(distribution).forEach(([instance, count]) => {
+                const percentage = (count / 10) * 100;
+                html += `<div style="margin: 0.5rem 0;">`;
+                html += `<strong>${instance}:</strong> ${count} requisições (${percentage}%)`;
+                html += `<div style="background: #667eea; height: 20px; width: ${percentage * 2}px; border-radius: 10px; margin-top: 4px;"></div>`;
+                html += `</div>`;
+            });
+
+            html += '</div>';
+            resultDiv.innerHTML = html;
+        }
+
+        // Função para verificar health checks
+        async function checkHealth() {
+            const resultDiv = document.getElementById('test-results');
+            resultDiv.innerHTML = '<div class="loading">Verificando health checks</div>';
+
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+
+                let html = '<h4>💚 Health Check Results:</h4>';
+                html += '<div style="background: white; padding: 1rem; border-radius: 8px;">';
+                html += `<strong>Status:</strong> ${data.status}<br>`;
+                html += `<strong>Instância:</strong> ${data.instance_id}<br>`;
+                html += `<strong>Timestamp:</strong> ${data.timestamp}`;
+                html += '</div>';
+
+                resultDiv.innerHTML = html;
+            } catch (error) {
+                resultDiv.innerHTML = '<div class="error">Erro ao verificar health check</div>';
+            }
+        }
+
+        // Simulação de falha (não faz nada real, apenas demonstrativo)
+        function testFailover() {
+            const resultDiv = document.getElementById('test-results');
+            resultDiv.innerHTML = `
+                <div style="background: white; padding: 1rem; border-radius: 8px;">
+                    <h4>🔄 Simulação de Failover</h4>
+                    <p>Para testar failover real, execute:</p>
+                    <pre style="background: #f8f9fa; padding: 1rem; border-radius: 4px; margin: 1rem 0;">docker stop ecommerce-backend1</pre>
+                    <p>Em seguida, faça algumas requisições para ver o Nginx redirecionando automaticamente para as instâncias saudáveis.</p>
+                </div>
+            `;
+        }
+
+        // Carregar informações ao carregar a página
+        document.addEventListener('DOMContentLoaded', loadInstanceInfo);
+
+        // Atualizar informações da instância a cada 5 segundos
+        setInterval(loadInstanceInfo, 5000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carrinho - E-commerce TF04</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <nav class="navbar">
+            <a href="/" class="logo">E-commerce TF04</a>
+            <ul class="nav-links">
+                <li><a href="/">Início</a></li>
+                <li><a href="produtos.html">Produtos</a></li>
+                <li><a href="/admin/">Admin</a></li>
+                <li><a href="/nginx-status">Status</a></li>
+            </ul>
+            <a href="carrinho.html" class="cart-icon">
+                🛒 Carrinho <span id="cart-count">(0)</span>
+            </a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <h1>🛒 Meu Carrinho de Compras</h1>
+
+        <!-- Status da instância -->
+        <div class="status-info">
+            <p>Processamento sendo realizado pela instância: <span class="instance-id" id="current-instance">-</span></p>
+        </div>
+
+        <!-- Carrinho vazio -->
+        <div id="empty-cart" style="display: none;">
+            <div style="text-align: center; padding: 3rem; background: white; border-radius: 8px;">
+                <h2>🛒 Seu carrinho está vazio</h2>
+                <p>Adicione alguns produtos e volte aqui para finalizar sua compra!</p>
+                <a href="produtos.html" class="btn">Ver Produtos</a>
+            </div>
+        </div>
+
+        <!-- Itens do carrinho -->
+        <div id="cart-items" class="cart-container">
+            <!-- Itens serão carregados via JavaScript -->
+        </div>
+
+        <!-- Resumo do carrinho -->
+        <div id="cart-summary" style="display: none;">
+            <div style="background: white; padding: 2rem; border-radius: 8px; margin-top: 2rem;">
+                <h3>💰 Resumo da Compra</h3>
+                <div style="border-top: 1px solid #eee; margin: 1rem 0; padding-top: 1rem;">
+                    <div style="display: flex; justify-content: space-between; font-size: 1.2rem; font-weight: bold;">
+                        <span>Total:</span>
+                        <span id="total-price">R$ 0,00</span>
+                    </div>
+                </div>
+                <button onclick="checkout()" class="btn" style="width: 100%; margin-top: 1rem;">
+                    💳 Finalizar Compra
+                </button>
+                <button onclick="clearCart()" class="btn btn-secondary" style="width: 100%; margin-top: 0.5rem; background: transparent; border: 1px solid #666; color: #666;">
+                    🗑️ Limpar Carrinho
+                </button>
+            </div>
+        </div>
+
+        <!-- Teste de load balancing durante checkout -->
+        <div style="margin-top: 2rem;">
+            <h3>🧪 Demonstração de Load Balancing</h3>
+            <div class="status-info">
+                <p>Teste como diferentes operações são distribuídas entre as instâncias:</p>
+                <button onclick="testMultipleCheckouts()" class="btn">
+                    🔄 Simular Múltiplos Checkouts
+                </button>
+                <button onclick="testHeavyOperation()" class="btn">
+                    ⚡ Operação Pesada
+                </button>
+            </div>
+            <div id="test-results" style="margin-top: 1rem;"></div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>&copy; 2024 E-commerce TF04 - Demonstração de Load Balancer</p>
+    </footer>
+
+    <script>
+        let cart = JSON.parse(localStorage.getItem('cart') || '[]');
+
+        // Atualizar contador do carrinho
+        function updateCartCount() {
+            const count = cart.reduce((total, item) => total + item.quantidade, 0);
+            document.getElementById('cart-count').textContent = `(${count})`;
+        }
+
+        // Renderizar itens do carrinho
+        function renderCart() {
+            const cartItemsDiv = document.getElementById('cart-items');
+            const emptyCar തDiv = document.getElementById('empty-cart');
+            const cartSummaryDiv = document.getElementById('cart-summary');
+            const totalPriceSpan = document.getElementById('total-price');
+
+            if (cart.length === 0) {
+                emptyCar থDiv.style.display = 'block';
+                cartItemsDiv.style.display = 'none';
+                cartSummaryDiv.style.display = 'none';
+                return;
+            }
+
+            emptyCar থDiv.style.display = 'none';
+            cartItemsDiv.style.display = 'block';
+            cartSummaryDiv.style.display = 'block';
+
+            const total = cart.reduce((sum, item) => sum + (item.preco * item.quantidade), 0);
+            totalPriceSpan.textContent = `R$ ${total.toFixed(2)}`;
+
+            cartItemsDiv.innerHTML = cart.map(item => `
+                <div class="carrinho-item">
+                    <div class="item-info">
+                        <h4>${item.nome}</h4>
+                        <div class="item-preco">R$ ${item.preco.toFixed(2)} cada</div>
+                        <div class="produto-categoria">${item.categoria}</div>
+                    </div>
+                    <div class="quantidade-controls">
+                        <button class="qty-btn" onclick="updateQuantity(${item.id}, ${item.quantidade - 1})">-</button>
+                        <input type="number" value="${item.quantidade}" min="1" class="qty-input"
+                               onchange="updateQuantity(${item.id}, this.value)">
+                        <button class="qty-btn" onclick="updateQuantity(${item.id}, ${item.quantidade + 1})">+</button>
+                        <div style="margin-left: 1rem;">
+                            <strong>R$ ${(item.preco * item.quantidade).toFixed(2)}</strong>
+                        </div>
+                        <button onclick="removeItem(${item.id})" style="background: #dc3545; margin-left: 1rem;" class="qty-btn">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Atualizar quantidade
+        function updateQuantity(itemId, newQuantity) {
+            newQuantity = parseInt(newQuantity);
+
+            if (newQuantity <= 0) {
+                removeItem(itemId);
+                return;
+            }
+
+            const item = cart.find(item => item.id === itemId);
+            if (item) {
+                item.quantidade = newQuantity;
+                localStorage.setItem('cart', JSON.stringify(cart));
+                renderCart();
+                updateCartCount();
+            }
+        }
+
+        // Remover item
+        function removeItem(itemId) {
+            cart = cart.filter(item => item.id !== itemId);
+            localStorage.setItem('cart', JSON.stringify(cart));
+            renderCart();
+            updateCartCount();
+            showNotification('🗑️ Item removido do carrinho');
+        }
+
+        // Limpar carrinho
+        function clearCart() {
+            if (confirm('Tem certeza que deseja limpar todo o carrinho?')) {
+                cart = [];
+                localStorage.setItem('cart', JSON.stringify(cart));
+                renderCart();
+                updateCartCount();
+                showNotification('🗑️ Carrinho limpo!');
+            }
+        }
+
+        // Finalizar compra
+        async function checkout() {
+            if (cart.length === 0) {
+                showNotification('❌ Carrinho vazio!', 'error');
+                return;
+            }
+
+            const checkoutBtn = event.target;
+            checkoutBtn.disabled = true;
+            checkoutBtn.textContent = 'Processando...';
+
+            try {
+                // Simular checkout usando múltiplas chamadas de API
+                const checkoutData = {
+                    items: cart,
+                    total: cart.reduce((sum, item) => sum + (item.preco * item.quantidade), 0)
+                };
+
+                // Simulando validação de produtos
+                for (const item of cart) {
+                    const response = await fetch(`/api/produtos/${item.id}`);
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(`Produto ${item.nome} não encontrado`);
+                    }
+                }
+
+                // Simular processamento do pedido
+                const orderResponse = await fetch('/api/carrinho', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        produto_id: cart[0].id, // Simular com primeiro produto
+                        quantidade: cart.reduce((sum, item) => sum + item.quantidade, 0)
+                    })
+                });
+
+                const orderData = await orderResponse.json();
+
+                if (orderData.sucesso || orderResponse.ok) {
+                    // Atualizar instância atual
+                    document.getElementById('current-instance').textContent = orderData.instance_id || 'N/A';
+
+                    // Sucesso
+                    showNotification(`✅ Pedido processado com sucesso pela instância ${orderData.instance_id}!`);
+
+                    // Limpar carrinho após sucesso
+                    setTimeout(() => {
+                        clearCart();
+                    }, 2000);
+
+                } else {
+                    throw new Error('Erro no processamento do pedido');
+                }
+
+            } catch (error) {
+                console.error('Erro no checkout:', error);
+                showNotification(`❌ Erro no checkout: ${error.message}`, 'error');
+            } finally {
+                checkoutBtn.disabled = false;
+                checkoutBtn.textContent = '💳 Finalizar Compra';
+            }
+        }
+
+        // Testar múltiplos checkouts para demonstrar load balancing
+        async function testMultipleCheckouts() {
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = '<div class="loading">Testando distribuição de checkout...</div>';
+
+            const results = [];
+
+            try {
+                // Fazer 5 simulações de checkout
+                for (let i = 0; i < 5; i++) {
+                    const response = await fetch('/api/carrinho', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            produto_id: 1,
+                            quantidade: 1
+                        })
+                    });
+
+                    const data = await response.json();
+                    results.push({
+                        checkout: i + 1,
+                        instance: data.instance_id,
+                        success: response.ok
+                    });
+                }
+
+                // Mostrar resultados
+                let html = '<h4>🔄 Resultados dos Checkouts Distribuídos:</h4>';
+                html += '<div style="background: white; padding: 1rem; border-radius: 8px;">';
+
+                results.forEach(result => {
+                    const status = result.success ? '✅' : '❌';
+                    html += `<div style="margin: 0.5rem 0;">`;
+                    html += `${status} Checkout ${result.checkout}: <span class="instance-id">${result.instance}</span>`;
+                    html += `</div>`;
+                });
+
+                // Contar distribuição
+                const distribution = {};
+                results.forEach(result => {
+                    if (result.success) {
+                        distribution[result.instance] = (distribution[result.instance] || 0) + 1;
+                    }
+                });
+
+                html += '<br><strong>📊 Distribuição por Instância:</strong><br>';
+                Object.entries(distribution).forEach(([instance, count]) => {
+                    html += `${instance}: ${count} checkout(s)<br>`;
+                });
+
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+
+            } catch (error) {
+                resultsDiv.innerHTML = '<div class="error">❌ Erro no teste de checkout</div>';
+            }
+        }
+
+        // Testar operação pesada
+        async function testHeavyOperation() {
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = '<div class="loading">Executando operação pesada...</div>';
+
+            const startTime = performance.now();
+
+            try {
+                const response = await fetch('/api/heavy');
+                const data = await response.json();
+                const endTime = performance.now();
+
+                const totalTime = (endTime - startTime).toFixed(2);
+
+                resultsDiv.innerHTML = `
+                    <div style="background: white; padding: 1rem; border-radius: 8px;">
+                        <h4>⚡ Operação Pesada Concluída</h4>
+                        <p><strong>Instância:</strong> <span class="instance-id">${data.instance_id}</span></p>
+                        <p><strong>Tempo total:</strong> ${totalTime}ms</p>
+                        <p><strong>Tempo de processamento:</strong> ${(data.processing_time * 1000).toFixed(2)}ms</p>
+                        <p><strong>Message:</strong> ${data.message}</p>
+                    </div>
+                `;
+
+                // Atualizar instância atual no cabeçalho
+                document.getElementById('current-instance').textContent = data.instance_id;
+
+            } catch (error) {
+                resultsDiv.innerHTML = '<div class="error">❌ Erro na operação pesada</div>';
+            }
+        }
+
+        // Mostrar notificações
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.textContent = message;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${type === 'error' ? '#f8d7da' : '#d4edda'};
+                color: ${type === 'error' ? '#721c24' : '#155724'};
+                padding: 1rem;
+                border-radius: 8px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                z-index: 1000;
+                animation: slideIn 0.3s ease;
+            `;
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // Inicializar página
+        document.addEventListener('DOMContentLoaded', () => {
+            renderCart();
+            updateCartCount();
+        });
+
+        // CSS para animação
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+
+            .cart-container {
+                display: flex;
+                flex-direction: column;
+                gap: 1rem;
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

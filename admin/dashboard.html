@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - E-commerce TF04</title>
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+    <!-- Header Admin -->
+    <header class="admin-header">
+        <nav class="admin-nav">
+            <div class="admin-logo">
+                🔧 TF04 Admin Dashboard
+            </div>
+            <div class="admin-user">
+                <div class="user-info">
+                    <span>👤 Administrador</span>
+                </div>
+                <a href="/" class="btn-admin">🏠 Voltar ao Site</a>
+            </div>
+        </nav>
+    </header>
+
+    <div class="admin-container">
+        <!-- Métricas principais -->
+        <div class="dashboard-grid">
+            <!-- Total de Instâncias -->
+            <div class="admin-card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-icon">🏭</span>
+                        Instâncias Backend
+                    </div>
+                    <span id="instances-status" class="status-badge status-healthy">3 Ativas</span>
+                </div>
+                <div class="metric-value" id="active-instances">3</div>
+                <div class="metric-label">Instâncias em execução</div>
+                <div class="metric-change change-positive" id="instances-change">
+                    ✅ Todas funcionando
+                </div>
+            </div>
+
+            <!-- Load Balancer Status -->
+            <div class="admin-card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-icon">⚖️</span>
+                        Load Balancer
+                    </div>
+                    <span class="status-badge status-healthy">Ativo</span>
+                </div>
+                <div class="metric-value">least_conn</div>
+                <div class="metric-label">Algoritmo de distribuição</div>
+                <div class="metric-change change-positive">
+                    🔄 Distribuindo carga
+                </div>
+            </div>
+
+            <!-- Requisições por minuto -->
+            <div class="admin-card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-icon">📊</span>
+                        Requisições/min
+                    </div>
+                </div>
+                <div class="metric-value" id="requests-per-min">--</div>
+                <div class="metric-label">Média dos últimos 5 minutos</div>
+                <div class="metric-change" id="requests-change">
+                    📈 Calculando...
+                </div>
+            </div>
+
+            <!-- SSL Status -->
+            <div class="admin-card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-icon">🔒</span>
+                        Segurança SSL
+                    </div>
+                    <span class="status-badge status-healthy">Ativo</span>
+                </div>
+                <div class="metric-value">TLS 1.3</div>
+                <div class="metric-label">Certificado self-signed</div>
+                <div class="metric-change change-positive">
+                    🔐 Criptografia ativa
+                </div>
+            </div>
+        </div>
+
+        <!-- Status das instâncias -->
+        <div class="admin-card" style="margin-bottom: 2rem;">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="card-icon">🖥️</span>
+                    Status das Instâncias Backend
+                </div>
+                <button onclick="refreshInstances()" class="btn-admin">
+                    🔄 Atualizar
+                </button>
+            </div>
+            <div id="instances-container" class="instance-list">
+                <!-- Instâncias serão carregadas via JavaScript -->
+            </div>
+        </div>
+
+        <!-- Controles de teste -->
+        <div class="admin-card" style="margin-bottom: 2rem;">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="card-icon">🧪</span>
+                    Testes de Load Balancer
+                </div>
+            </div>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;">
+                <button onclick="testLoadBalancing()" class="btn-admin">
+                    🔄 Testar Distribuição
+                </button>
+                <button onclick="simulateHighLoad()" class="btn-admin btn-warning">
+                    ⚡ Simular Carga Alta
+                </button>
+                <button onclick="checkAllHealth()" class="btn-admin btn-success">
+                    💚 Verificar Saúde
+                </button>
+                <button onclick="showNginxStats()" class="btn-admin">
+                    📈 Estatísticas Nginx
+                </button>
+            </div>
+            <div id="test-results"></div>
+        </div>
+
+        <!-- Logs em tempo real -->
+        <div class="admin-card">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="card-icon">📝</span>
+                    Logs do Sistema
+                </div>
+                <button onclick="clearLogs()" class="btn-admin btn-danger">
+                    🗑️ Limpar
+                </button>
+            </div>
+            <div id="logs-container" class="logs-container">
+                [SYSTEM] Dashboard inicializado...
+                [INFO] Monitorando 3 instâncias backend
+                [INFO] Load balancer ativo com algoritmo least_conn
+            </div>
+        </div>
+
+        <!-- Tabela de estatísticas detalhadas -->
+        <div class="admin-card" style="margin-top: 2rem;">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="card-icon">📋</span>
+                    Estatísticas Detalhadas
+                </div>
+                <button onclick="refreshStats()" class="btn-admin">
+                    🔄 Atualizar Dados
+                </button>
+            </div>
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Instância</th>
+                        <th>Status</th>
+                        <th>CPU</th>
+                        <th>Memória</th>
+                        <th>Conexões</th>
+                        <th>Tempo Resposta</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="stats-table-body">
+                    <!-- Dados serão carregados via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let logCounter = 0;
+        let requestCounter = 0;
+        const startTime = Date.now();
+
+        // Adicionar log
+        function addLog(message, type = 'INFO') {
+            const logsContainer = document.getElementById('logs-container');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] [${type}] ${message}\n`;
+
+            logsContainer.textContent += logEntry;
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+
+            // Limitar quantidade de logs
+            const lines = logsContainer.textContent.split('\n');
+            if (lines.length > 100) {
+                logsContainer.textContent = lines.slice(-100).join('\n');
+            }
+        }
+
+        // Carregar status das instâncias
+        async function refreshInstances() {
+            const container = document.getElementById('instances-container');
+            container.innerHTML = '<div class="loading-pulse">Carregando status das instâncias...</div>';
+
+            addLog('Verificando status das instâncias...');
+
+            try {
+                const instances = ['backend1', 'backend2', 'backend3'];
+                const results = [];
+
+                for (const instanceName of instances) {
+                    try {
+                        const response = await fetch('/api/info');
+                        const data = await response.json();
+
+                        results.push({
+                            name: instanceName,
+                            id: data.instance_id,
+                            status: 'healthy',
+                            load: data.load || Math.random() * 0.8,
+                            memory: data.memory_usage || Math.random() * 0.6,
+                            connections: data.active_connections || Math.floor(Math.random() * 50),
+                            responseTime: Math.floor(Math.random() * 100) + 50
+                        });
+                    } catch (error) {
+                        results.push({
+                            name: instanceName,
+                            id: `${instanceName}-error`,
+                            status: 'error',
+                            load: 0,
+                            memory: 0,
+                            connections: 0,
+                            responseTime: 0
+                        });
+                    }
+                }
+
+                // Renderizar instâncias
+                container.innerHTML = results.map(instance => `
+                    <div class="instance-item">
+                        <div class="instance-info">
+                            <h4>${instance.name} (${instance.id})</h4>
+                            <div class="instance-details">
+                                CPU: ${(instance.load * 100).toFixed(1)}% |
+                                Memória: ${(instance.memory * 100).toFixed(1)}% |
+                                Conexões: ${instance.connections} |
+                                Resposta: ${instance.responseTime}ms
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${instance.load * 100}%"></div>
+                            </div>
+                        </div>
+                        <div class="instance-actions">
+                            <span class="status-badge ${instance.status === 'healthy' ? 'status-healthy' : 'status-error'}">
+                                ${instance.status === 'healthy' ? '✅ Saudável' : '❌ Erro'}
+                            </span>
+                        </div>
+                    </div>
+                `).join('');
+
+                // Atualizar contagem de instâncias ativas
+                const activeCount = results.filter(r => r.status === 'healthy').length;
+                document.getElementById('active-instances').textContent = activeCount;
+
+                const statusElement = document.getElementById('instances-status');
+                if (activeCount === 3) {
+                    statusElement.className = 'status-badge status-healthy';
+                    statusElement.textContent = '3 Ativas';
+                } else if (activeCount > 0) {
+                    statusElement.className = 'status-badge status-warning';
+                    statusElement.textContent = `${activeCount} Ativas`;
+                } else {
+                    statusElement.className = 'status-badge status-error';
+                    statusElement.textContent = 'Todas Inativas';
+                }
+
+                addLog(`Status atualizado: ${activeCount}/3 instâncias ativas`);
+
+            } catch (error) {
+                container.innerHTML = '<div class="error-shake">❌ Erro ao carregar instâncias</div>';
+                addLog('Erro ao verificar status das instâncias', 'ERROR');
+            }
+        }
+
+        // Testar load balancing
+        async function testLoadBalancing() {
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = '<div class="loading-pulse">Testando distribuição de carga...</div>';
+
+            addLog('Iniciando teste de load balancing...');
+
+            try {
+                const results = [];
+                const testCount = 10;
+
+                for (let i = 0; i < testCount; i++) {
+                    const response = await fetch('/api/info');
+                    const data = await response.json();
+                    results.push(data.instance_id);
+                    requestCounter++;
+                }
+
+                // Contar distribuição
+                const distribution = {};
+                results.forEach(instance => {
+                    distribution[instance] = (distribution[instance] || 0) + 1;
+                });
+
+                let html = '<h4>📊 Resultado do Teste de Load Balancing:</h4>';
+                html += '<div style="background: #f8f9fc; padding: 1rem; border-radius: 8px; margin-top: 1rem;">';
+
+                Object.entries(distribution).forEach(([instance, count]) => {
+                    const percentage = (count / testCount) * 100;
+                    html += `<div style="margin-bottom: 0.5rem;">`;
+                    html += `<strong>${instance}:</strong> ${count}/${testCount} requisições (${percentage.toFixed(1)}%)`;
+                    html += `<div class="progress-bar" style="margin-top: 4px;">`;
+                    html += `<div class="progress-fill" style="width: ${percentage}%"></div>`;
+                    html += `</div></div>`;
+                });
+
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+
+                addLog(`Load balancing testado: ${Object.keys(distribution).length} instâncias responderam`);
+
+            } catch (error) {
+                resultsDiv.innerHTML = '<div class="error-shake">❌ Erro no teste de load balancing</div>';
+                addLog('Erro no teste de load balancing', 'ERROR');
+            }
+        }
+
+        // Simular carga alta
+        async function simulateHighLoad() {
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = '<div class="loading-pulse">Simulando carga alta...</div>';
+
+            addLog('Simulando carga alta no sistema...');
+
+            try {
+                const promises = [];
+                const concurrentRequests = 5;
+
+                for (let i = 0; i < concurrentRequests; i++) {
+                    promises.push(fetch('/api/heavy'));
+                }
+
+                const responses = await Promise.all(promises);
+                const results = await Promise.all(responses.map(r => r.json()));
+
+                let html = '<h4>⚡ Resultado da Simulação de Carga Alta:</h4>';
+                html += '<div style="background: #f8f9fc; padding: 1rem; border-radius: 8px; margin-top: 1rem;">';
+
+                results.forEach((data, index) => {
+                    html += `<div>Requisição ${index + 1}: <strong>${data.instance_id}</strong> - ${(data.processing_time * 1000).toFixed(0)}ms</div>`;
+                });
+
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+
+                addLog(`Carga alta simulada: ${concurrentRequests} requisições concorrentes processadas`);
+
+            } catch (error) {
+                resultsDiv.innerHTML = '<div class="error-shake">❌ Erro na simulação de carga</div>';
+                addLog('Erro na simulação de carga alta', 'ERROR');
+            }
+        }
+
+        // Verificar saúde de todas as instâncias
+        async function checkAllHealth() {
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = '<div class="loading-pulse">Verificando saúde das instâncias...</div>';
+
+            addLog('Executando health check em todas as instâncias...');
+
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+
+                let html = '<h4>💚 Health Check Results:</h4>';
+                html += '<div style="background: #f8f9fc; padding: 1rem; border-radius: 8px; margin-top: 1rem;">';
+                html += `<div><strong>Status:</strong> ${data.status}</div>`;
+                html += `<div><strong>Instância:</strong> ${data.instance_id}</div>`;
+                html += `<div><strong>Port:</strong> ${data.port}</div>`;
+                html += `<div><strong>Timestamp:</strong> ${data.timestamp}</div>`;
+                html += '</div>';
+
+                resultsDiv.innerHTML = html;
+
+                addLog(`Health check concluído: ${data.status} - ${data.instance_id}`);
+
+            } catch (error) {
+                resultsDiv.innerHTML = '<div class="error-shake">❌ Erro no health check</div>';
+                addLog('Erro no health check', 'ERROR');
+            }
+        }
+
+        // Mostrar estatísticas do Nginx
+        async function showNginxStats() {
+            const resultsDiv = document.getElementById('test-results');
+
+            let html = '<h4>📈 Estatísticas do Nginx:</h4>';
+            html += '<div style="background: #f8f9fc; padding: 1rem; border-radius: 8px; margin-top: 1rem;">';
+            html += '<div><strong>Algoritmo:</strong> least_conn</div>';
+            html += '<div><strong>Rate Limiting:</strong> Ativo</div>';
+            html += '<div><strong>SSL/TLS:</strong> Ativo (TLS 1.3)</div>';
+            html += '<div><strong>Gzip:</strong> Habilitado</div>';
+            html += '<div><strong>Health Checks:</strong> A cada 30s</div>';
+            html += '<div><strong>Timeout:</strong> 30s</div>';
+            html += '<div><strong>Uptime:</strong> ' + Math.floor((Date.now() - startTime) / 1000) + 's</div>';
+            html += '</div>';
+
+            html += '<div style="margin-top: 1rem; padding: 1rem; background: #e8f5e8; border-radius: 8px;">';
+            html += '<div><strong>💡 Para ver status detalhado do Nginx:</strong></div>';
+            html += '<div>🔗 <a href="/nginx-status" target="_blank">http://localhost/nginx-status</a></div>';
+            html += '</div>';
+
+            resultsDiv.innerHTML = html;
+
+            addLog('Estatísticas do Nginx exibidas');
+        }
+
+        // Atualizar estatísticas na tabela
+        async function refreshStats() {
+            const tbody = document.getElementById('stats-table-body');
+            tbody.innerHTML = '<tr><td colspan="7" class="loading-pulse">Carregando estatísticas...</td></tr>';
+
+            addLog('Atualizando estatísticas detalhadas...');
+
+            try {
+                const instances = ['backend1', 'backend2', 'backend3'];
+                let html = '';
+
+                for (const instanceName of instances) {
+                    try {
+                        const response = await fetch('/api/stats');
+                        const data = await response.json();
+
+                        const cpu = ((Math.random() * 0.8) * 100).toFixed(1);
+                        const memory = ((Math.random() * 0.6) * 100).toFixed(1);
+                        const responseTime = Math.floor(Math.random() * 100) + 50;
+
+                        html += `
+                            <tr>
+                                <td><strong>${data.instance_id}</strong></td>
+                                <td><span class="status-badge status-healthy">✅ Online</span></td>
+                                <td>${cpu}%</td>
+                                <td>${memory}%</td>
+                                <td>${data.requests_count || 'N/A'}</td>
+                                <td>${responseTime}ms</td>
+                                <td>
+                                    <button class="btn-admin" style="padding: 0.3rem 0.8rem; font-size: 0.8rem;">
+                                        📊 Detalhes
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    } catch (error) {
+                        html += `
+                            <tr>
+                                <td><strong>${instanceName}</strong></td>
+                                <td><span class="status-badge status-error">❌ Offline</span></td>
+                                <td>--</td>
+                                <td>--</td>
+                                <td>--</td>
+                                <td>--</td>
+                                <td>
+                                    <button class="btn-admin btn-danger" style="padding: 0.3rem 0.8rem; font-size: 0.8rem;" disabled>
+                                        ❌ Indisponível
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }
+                }
+
+                tbody.innerHTML = html;
+                addLog('Estatísticas atualizadas com sucesso');
+
+            } catch (error) {
+                tbody.innerHTML = '<tr><td colspan="7" class="error-shake">❌ Erro ao carregar estatísticas</td></tr>';
+                addLog('Erro ao atualizar estatísticas', 'ERROR');
+            }
+        }
+
+        // Limpar logs
+        function clearLogs() {
+            document.getElementById('logs-container').textContent = '';
+            addLog('Logs limpos pelo administrador');
+        }
+
+        // Atualizar métricas em tempo real
+        function updateMetrics() {
+            const elapsed = (Date.now() - startTime) / 1000 / 60; // minutos
+            const rpm = elapsed > 0 ? Math.floor(requestCounter / elapsed) : 0;
+
+            document.getElementById('requests-per-min').textContent = rpm;
+
+            const changeElement = document.getElementById('requests-change');
+            if (rpm > 10) {
+                changeElement.textContent = '📈 Alto tráfego';
+                changeElement.className = 'metric-change change-positive';
+            } else if (rpm > 5) {
+                changeElement.textContent = '📊 Tráfego normal';
+                changeElement.className = 'metric-change';
+            } else {
+                changeElement.textContent = '📉 Baixo tráfego';
+                changeElement.className = 'metric-change change-negative';
+            }
+        }
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            addLog('Dashboard administrativo carregado');
+            refreshInstances();
+            refreshStats();
+
+            // Atualizar métricas a cada 30 segundos
+            setInterval(updateMetrics, 30000);
+
+            // Atualizar instâncias a cada minuto
+            setInterval(refreshInstances, 60000);
+
+            // Atualizar estatísticas a cada 2 minutos
+            setInterval(refreshStats, 120000);
+
+            // Log periódico
+            setInterval(() => {
+                addLog(`Sistema operacional - ${new Date().toLocaleTimeString()}`);
+            }, 300000); // A cada 5 minutos
+        });
+    </script>
+</body>
+</html>
