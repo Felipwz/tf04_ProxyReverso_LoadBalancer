@@ -1,8 +1,8 @@
 # TF04 - E-commerce com Load Balancer Avançado
 
 ## Aluno
-- **Nome:** [Seu Nome Completo]
-- **RA:** [Seu RA]
+- **Nome:** Luiz Felipe Siqueira de Souza
+- **RA:** 6324548
 - **Curso:** Análise e Desenvolvimento de Sistemas
 
 ## Arquitetura
